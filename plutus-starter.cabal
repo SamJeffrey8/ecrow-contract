@@ -13,8 +13,8 @@ version:            0.1.0.0
 
 license: Apache-2.0
 license-files: LICENSE
-author:             gannit
-maintainer:         gannit
+author:             Sam Jeffrey M
+maintainer:         Sam Jeffrey M
 
 -- A copyright notice.
 -- copyright:
@@ -42,7 +42,8 @@ library
     import: lang
     exposed-modules:
       AuthNFTIssuer,
-      ProtectedResource
+      ProtectedResource,
+      EscrowContract
     build-depends:
       base >= 4.9 && < 5,
       aeson,

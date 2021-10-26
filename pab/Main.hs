@@ -20,6 +20,7 @@ import           Data.Text.Prettyprint.Doc           (Pretty (..), viaShow)
 import           GHC.Generics                        (Generic)
 import           AuthNFTIssuer
 import           ProtectedResource
+import           EscrowContract
 import           Plutus.Contract                     (ContractError)
 import           Plutus.PAB.Effects.Contract.Builtin (Builtin, SomeBuiltin (..), BuiltinHandler(contractHandler))
 import qualified Plutus.PAB.Effects.Contract.Builtin as Builtin
@@ -44,6 +45,7 @@ main = void $ Simulator.runSimulationWith handlers $ do
 data StarterContracts =
       AuthNFTIssuerContract
     | ProtectedResourceContract
+    | EscrowContract
     deriving (Eq, Ord, Show, Generic)
 
 -- NOTE: Because 'StarterContracts' only has one constructor, corresponding to
@@ -64,13 +66,15 @@ instance Pretty StarterContracts where
     pretty = viaShow
 
 instance Builtin.HasDefinitions StarterContracts where
-    getDefinitions = [AuthNFTIssuerContract,ProtectedResourceContract]
+    getDefinitions = [AuthNFTIssuerContract,ProtectedResourceContract, EscrowContract]
     getSchema =  \case
         AuthNFTIssuerContract -> Builtin.endpointsToSchemas @AuthNFTIssuer.AuthNFTIssuerSchema
         ProtectedResourceContract -> Builtin.endpointsToSchemas @ProtectedResource.ProtectedResourceSchema
+        EscrowContract -> Builtin.endpointsToSchemas @EscrowContract.EscrowContractSchema
     getContract = \case
         AuthNFTIssuerContract -> SomeBuiltin (AuthNFTIssuer.endpoints @ContractError)
         ProtectedResourceContract -> SomeBuiltin (ProtectedResource.endpoints @ContractError)
+        EscrowContract -> SomeBuiltin (EscrowContract.endpoints @ContractError)
 
 handlers :: SimulatorEffectHandlers (Builtin StarterContracts)
 handlers =

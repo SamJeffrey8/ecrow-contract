@@ -1,34 +1,52 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE DeriveAnyClass      #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE DataKinds                     #-}
+{-# LANGUAGE DeriveAnyClass                #-}
+{-# LANGUAGE DeriveGeneric                 #-}
+{-# LANGUAGE FlexibleContexts              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving    #-}
+{-# LANGUAGE MultiParamTypeClasses         #-}
+{-# LANGUAGE NoImplicitPrelude             #-}
+{-# LANGUAGE OverloadedStrings             #-}
+{-# LANGUAGE ScopedTypeVariables           #-}
+{-# LANGUAGE TemplateHaskell               #-}
+{-# LANGUAGE TypeApplications              #-}
+{-# LANGUAGE TypeFamilies                  #-}
+{-# LANGUAGE TypeOperators                 #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports   #-}
+{-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
 
 module AuthNFTIssuer(issuerCS, endpoints, AuthNFTIssuerSchema) where
 
-import           Control.Lens         (view)
-import           Control.Monad          hiding (fmap)
-import qualified Data.Map               as Map hiding (empty)
-import           Data.Text              (Text)
-import           Data.Void              (Void)
-import           Ledger                 hiding (mint, singleton)
-import           Ledger.Constraints     as Constraints
-import qualified Ledger.Typed.Scripts   as Scripts
-import           Ledger.Value           as Value
+import           Control.Monad        hiding (fmap)
+import           Data.Aeson           (ToJSON, FromJSON)
+import           Data.Map             as Map hiding (empty)
+import           Data.Text            (Text, unpack)
+import           Data.Monoid          (Last (..))
+import           Data.Void            (Void)
+import           GHC.Generics         (Generic)
 import           Plutus.Contract
+import           PlutusTx             (toBuiltinData)
 import qualified PlutusTx
-import           PlutusTx.Prelude       hiding (Semigroup(..), unless)
-import           Playground.TH          (mkKnownCurrencies, mkSchemaDefinitions)
-import           Playground.Types       (KnownCurrency (..))
-import           Prelude                (IO, Show (..), String, Semigroup (..) )
-import           Text.Printf            (printf)
+import           PlutusTx.Prelude     hiding (Semigroup(..), unless)
+import qualified PlutusTx.Prelude     as Plutus
+import           Ledger               hiding (singleton)
+import           Ledger.Constraints   as Constraints
+import qualified Ledger.Typed.Scripts as Scripts
+import           Ledger.Ada           as Ada
+import           Playground.Contract  (printJson, printSchemas, ensureKnownCurrencies, stage, ToSchema)
+import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
+import           Playground.Types     (KnownCurrency (..))
+import           Prelude              (IO, Semigroup (..), String)
+import qualified Prelude
+import           Text.Printf          (printf)
+import           Data.Text.Prettyprint.Doc.Extras (PrettyShow (..))
+import           Prelude              (Semigroup (..), Show (..), Eq)
+import           Plutus.Contract       as Contract
+import           Ledger.Value           as Value
+import           Ledger                 hiding (mint, singleton)
+import           Plutus.V1.Ledger.Value (Value (..), assetClass, assetClassValueOf)
+import           PlutusTx.Builtins.Class
 import           Wallet.Emulator.Wallet (Wallet, walletPubKey)
+
 
 {-# INLINABLE mkPolicy #-}
 mkPolicy :: PubKeyHash -> () -> ScriptContext -> Bool
@@ -43,16 +61,24 @@ policy pkh = mkMintingPolicyScript $
 issuerCS :: PubKeyHash -> CurrencySymbol
 issuerCS = scriptCurrencySymbol . policy
 
+data Arg = Arg
+    { time    :: String
+    , cWallet :: Wallet 
+    , pWallet :: Wallet
+    } deriving (Generic, ToJSON, FromJSON, ToSchema)
+
+
 type AuthNFTIssuerSchema =
-                  Endpoint "mint" Wallet
+                  Endpoint "mint" Arg
               .\/ Endpoint "inspect" String  {-Argument can be just () instead of String. Not done due to want of time-}
               .\/ Endpoint "logWalletNftTokenName" ()
 
-mint :: forall w s e. AsContractError e => Wallet -> Contract w s e ()
-mint wallet = do
+book :: forall w s e. AsContractError e => Arg -> Contract w s e ()
+book arg = do
     pkh <- pubKeyHash <$> ownPubKey
-    let reqPk = (pubKeyHash . walletPubKey) wallet
-        val     = Value.singleton (issuerCS pkh) (TokenName $ getPubKeyHash reqPk) 1
+    let reqPk = (pubKeyHash . walletPubKey) $ cWallet arg
+    let timeDate = time arg
+        val     = Value.singleton (issuerCS pkh) (TokenName  $ stringToBuiltinByteString  timeDate) 1
         lookups = Constraints.mintingPolicy $ policy pkh
         tx      = Constraints.mustMintValue val <>
                   Constraints.mustPayToPubKey reqPk val
@@ -60,37 +86,17 @@ mint wallet = do
     void $ awaitTxConfirmed $ txId ledgerTx
     logInfo @String $ printf "minted %s" (show val)
 
-inspect :: forall w s e. AsContractError e => String -> Contract w s e ()
-inspect _ = do
-    logInfo @String $ "Inspecting own utxos."
-    pk  <- ownPubKey
-    os  <- map snd . Map.toList <$> utxosAt (pubKeyAddress pk)
-    let totalVal = mconcat [view ciTxOutValue o | o <- os]
-    logInfo @String
-            $ "Logging total Value : " <> show totalVal
-    logInfo @String $ "Inspect complete"
 
-logWalletNftTokenName :: forall w s e. AsContractError e => () -> Contract w s e ()
-logWalletNftTokenName _ = do
-    pkh <- pubKeyHash <$> ownPubKey
-    let tn = TokenName $ getPubKeyHash pkh
-    logInfo @String
-            $ "Logging own nft token name : " <> show tn
-    logInfo @String $ "logWalletNftTokenName complete"
 
 mint' :: Promise () AuthNFTIssuerSchema Text ()
-mint' = endpoint @"mint" mint
+mint' = endpoint @"mint" book
 
-inspect' :: Promise () AuthNFTIssuerSchema Text ()
-inspect' = endpoint @"inspect" inspect
 
-logWalletNftTokenName' :: Promise () AuthNFTIssuerSchema Text ()
-logWalletNftTokenName' = endpoint @"logWalletNftTokenName" logWalletNftTokenName
 
 endpoints :: AsContractError e => Contract () AuthNFTIssuerSchema Text e
 endpoints = do
     logInfo @String "Waiting for request."
-    selectList [mint',inspect',logWalletNftTokenName'] >>  endpoints
+    selectList [mint'] >>  endpoints
 
 mkSchemaDefinitions ''AuthNFTIssuerSchema
 mkKnownCurrencies []
