@@ -6,16 +6,16 @@ export AliceW=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet
 sleep 1
 export BobOneW=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
 sleep 1
-export ClientWTwo=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
+export LoginAuthW=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
 sleep 1
 export PlatformW=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
 sleep 1
 
 
-export AliceW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "AuthNFTIssuerContract", "caWallet":{"getWalletId": '$AliceW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
+export AliceW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "EscrowContract", "caWallet":{"getWalletId": '$AliceW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
 export BobOneW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "EscrowContract", "caWallet":{"getWalletId": '$BobOneW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
-export ClientWTwo_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "AuthNFTIssuerContract", "caWallet":{"getWalletId": '$ClientWTwo'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
-export PlatformW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "ProtectedResourceContract", "caWallet":{"getWalletId": '$PlatformW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
+export LoginAuthW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "AuthNFTIssuerContract", "caWallet":{"getWalletId": '$LoginAuthW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
+export PlatformW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "Login", "caWallet":{"getWalletId": '$PlatformW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
 sleep 1
 
 
@@ -36,12 +36,12 @@ sleep 2
 printf "\n"
 read -n1 -r -p "Confirm timing and book session" key
 printf "\n"
-curl -H "Content-Type: application/json" -X POST -d '{"time":"10-02-2021-4PM-UTC", "cWallet": {"getWalletId": '$BobOneW'}, "pWallet": {"getWalletId": '$AliceW'}}' http://localhost:9080/api/contract/instance/$AliceW_IID/endpoint/mint &&
+curl -H "Content-Type: application/json" -X POST -d '{"time":"10-02-2021-4PM-UTC", "cWallet": {"getWalletId": '$BobOneW'}, "pWallet": {"getWalletId": '$LoginAuthW'}}' http://localhost:9080/api/contract/instance/$LoginAuthW_IID/endpoint/book &&
 sleep 2
 
 printf "\n"
 read -n1 -r -p "Login for the meeting..." key
-curl -H "Content-Type: application/json" -X POST -d '{"time":"10-02-2021-4PM-UTC", "clientWallet": {"getWalletId": '$BobOneW'}, "issuerWallet": {"getWalletId": '$AliceW'}}' http://localhost:9080/api/contract/instance/$PlatformW_IID/endpoint/checkAccess
+curl -H "Content-Type: application/json" -X POST -d '{"time":"10-02-2021-4PM-UTC", "clientWallet": {"getWalletId": '$BobOneW'}, "issuerWallet": {"getWalletId": '$LoginAuthW'}}' http://localhost:9080/api/contract/instance/$PlatformW_IID/endpoint/checkAccess
 sleep 2
 
 printf "\n"

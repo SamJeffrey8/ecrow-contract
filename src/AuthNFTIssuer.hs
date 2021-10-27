@@ -69,9 +69,7 @@ data Arg = Arg
 
 
 type AuthNFTIssuerSchema =
-                  Endpoint "mint" Arg
-              .\/ Endpoint "inspect" String  {-Argument can be just () instead of String. Not done due to want of time-}
-              .\/ Endpoint "logWalletNftTokenName" ()
+                  Endpoint "book" Arg
 
 book :: forall w s e. AsContractError e => Arg -> Contract w s e ()
 book arg = do
@@ -88,15 +86,15 @@ book arg = do
 
 
 
-mint' :: Promise () AuthNFTIssuerSchema Text ()
-mint' = endpoint @"mint" book
+book' :: Promise () AuthNFTIssuerSchema Text ()
+book' = endpoint @"book" book
 
 
 
 endpoints :: AsContractError e => Contract () AuthNFTIssuerSchema Text e
 endpoints = do
     logInfo @String "Waiting for request."
-    selectList [mint'] >>  endpoints
+    selectList [book'] >>  endpoints
 
 mkSchemaDefinitions ''AuthNFTIssuerSchema
 mkKnownCurrencies []

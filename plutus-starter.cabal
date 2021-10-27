@@ -42,7 +42,7 @@ library
     import: lang
     exposed-modules:
       AuthNFTIssuer,
-      ProtectedResource,
+      Login,
       EscrowContract
     build-depends:
       base >= 4.9 && < 5,

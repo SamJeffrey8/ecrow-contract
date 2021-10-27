@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 
-module ProtectedResource(endpoints, ProtectedResourceSchema) where
+module Login(endpoints, LoginSchema) where
 
 import           Control.Lens           (view)
 import           Control.Monad          hiding (fmap)
@@ -39,7 +39,7 @@ data CheckArg = CheckArg
     , clientWallet :: !Wallet
     } deriving (Generic, ToJSON, FromJSON, ToSchema)
     
-type ProtectedResourceSchema =
+type LoginSchema =
                   Endpoint "checkAccess" CheckArg
 
 checkAccess :: forall w s e. AsContractError e => CheckArg -> Contract w s e ()
@@ -56,13 +56,13 @@ checkAccess arg = do
     where
       nf val iw cw = assetClassValueOf (val) (AssetClass (I.issuerCS (pubKeyHash $ walletPubKey iw), (TokenName  $ stringToBuiltinByteString $ time arg))) == 1
 
-checkAccess' :: Promise () ProtectedResourceSchema Text ()
+checkAccess' :: Promise () LoginSchema Text ()
 checkAccess' = endpoint @"checkAccess" checkAccess
 
-endpoints :: AsContractError e => Contract () ProtectedResourceSchema Text e
+endpoints :: AsContractError e => Contract () LoginSchema Text e
 endpoints = do
     logInfo @String "Waiting for request."
     selectList [checkAccess'] >>  endpoints
 
-mkSchemaDefinitions ''ProtectedResourceSchema
+mkSchemaDefinitions ''LoginSchema
 mkKnownCurrencies []
