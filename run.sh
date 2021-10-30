@@ -11,6 +11,7 @@ sleep 1
 export PlatformW=`curl -s -d '' http://localhost:9080/wallet/create | jq '.wiWallet.getWalletId'`
 sleep 1
 
+read -n1 -r -p "Press any key to continue ..." key
 
 export AliceW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "EscrowContract", "caWallet":{"getWalletId": '$AliceW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
 export BobOneW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{"caID": "EscrowContract", "caWallet":{"getWalletId": '$BobOneW'}}' http://localhost:9080/api/contract/activate | jq .unContractInstanceId | tr -d '"')
@@ -19,12 +20,12 @@ export PlatformW_IID=$(curl -s -H "Content-Type: application/json" -X POST -d '{
 sleep 1
 
 
-read -n1 -r -p "Press any key to continue ..." key
+
 
 printf "\n"
 read -n1 -r -p "Press any key to deposit 20 ADA and see available time of Alice..." key
 printf "\n"
-curl -H "Content-Type: application/json" -X POST -d 2000000 http://localhost:9080/api/contract/instance/$BobOneW_IID/endpoint/book &&
+curl -H "Content-Type: application/json" -X POST -d 20000000 http://localhost:9080/api/contract/instance/$BobOneW_IID/endpoint/book &&
 sleep 2
 
 printf "\n"

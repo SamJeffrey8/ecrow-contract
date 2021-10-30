@@ -86,21 +86,9 @@ scrAddress = scriptAddress validator
 type EscrowContractSchema =
             Endpoint "book" Integer
         .\/ Endpoint "checkerAI" FeeRedeem
-        .\/ Endpoint "mint" Wallet
         .\/ Endpoint "cancel" CancellRedeem
 
 
-mint :: forall w s e. AsContractError e => Wallet -> Contract w s e ()
-mint wallet = do
-    pkh <- pubKeyHash <$> ownPubKey
-    let reqPk = (pubKeyHash . walletPubKey) wallet
-        val     = Value.singleton (issuerCS pkh) (TokenName $ getPubKeyHash reqPk) 1
-        lookups = Constraints.mintingPolicy $ policy pkh
-        tx      = Constraints.mustMintValue val <>
-                  Constraints.mustPayToPubKey reqPk val
-    ledgerTx <- submitTxConstraintsWith @Void lookups tx
-    void $ awaitTxConfirmed $ txId ledgerTx
-    logInfo @String $ printf "minted %s" (show val)
 
 book :: AsContractError e => Integer -> Contract w s e ()
 book amount = do
@@ -134,12 +122,6 @@ checkerAI r = do
 
 
 
-
-
-
-mint' :: Promise () EscrowContractSchema Text ()
-mint' = endpoint @"mint" mint
-
 book' :: Promise () EscrowContractSchema Text ()
 book' = endpoint @"book" book
 
@@ -152,7 +134,7 @@ checkerAI' = endpoint @"checkerAI" checkerAI
 endpoints :: AsContractError e => Contract () EscrowContractSchema Text e
 endpoints = do
     logInfo @String "Waiting for book or cancel."
-    selectList [mint', book', cancel', checkerAI'] >>  endpoints
+    selectList [book', cancel', checkerAI'] >>  endpoints
 
 -- these functions are used in the simulator
 mkSchemaDefinitions ''EscrowContractSchema
